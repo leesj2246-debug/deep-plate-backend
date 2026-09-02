@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id                String    @id @default(uuid()) @db.Uuid
+  displayName       String    @map("display_name") @db.VarChar(100)
+  contactType       String?   @map("contact_type") @db.VarChar(30)
+  contactValue      String?   @map("contact_value") @db.VarChar(255)
+  preferredLanguage String?   @map("preferred_language") @db.VarChar(10)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedBy         String?   @map("deleted_by") @db.VarChar(100)
+  deleteReason      String?   @map("delete_reason") @db.VarChar(500)
+
+  @@index([deletedAt])
+  @@map("customers")
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String       @db.VarChar(100)
+  email        String       @unique @db.VarChar(255)
+  passwordHash String       @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  savedPlaces  SavedPlace[]
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Restaurant {
+  id                 String       @id @default(uuid()) @db.Uuid
+  slug               String       @unique @db.VarChar(120)
+  nameKo             String       @map("name_ko") @db.VarChar(150)
+  nameJa             String?      @map("name_ja") @db.VarChar(150)
+  nameEn             String?      @map("name_en") @db.VarChar(150)
+  area               String       @db.VarChar(80)
+  category           String       @db.VarChar(80)
+  minBudget          Int?         @map("min_budget")
+  maxBudget          Int?         @map("max_budget")
+  description        String?      @db.VarChar(1000)
+  imageUrl           String?      @map("image_url") @db.VarChar(2048)
+  mapUrl             String?      @map("map_url") @db.VarChar(2048)
+  sourceUrl          String?      @map("source_url") @db.VarChar(2048)
+  lastVerifiedAt     DateTime?    @map("last_verified_at") @db.Timestamptz(3)
+  verificationStatus String       @default("PENDING") @map("verification_status") @db.VarChar(20)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  savedBy            SavedPlace[]
+
+  @@index([area, category])
+  @@index([deletedAt])
+  @@map("restaurants")
+}
+
+model SavedPlace {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  restaurantId String     @map("restaurant_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?  @map("deleted_at") @db.Timestamptz(3)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, restaurantId])
+  @@index([userId, deletedAt])
+  @@index([restaurantId])
+  @@map("saved_places")
+}
