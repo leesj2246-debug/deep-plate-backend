@@ -5,20 +5,25 @@ import { createRequireAuth } from "./auth/require-auth.js";
 import type { Database } from "./db.js";
 import { createPlaceRouter } from "./places/place-routes.js";
 import { createSavedPlaceRouter } from "./saved-places/saved-place-routes.js";
+import { createPaymentRouter } from "./payments/payment-routes.js";
+import type { PaymentConfig } from "./payments/payment-config.js";
+import { createTallyWebhookHandler } from "./payments/tally-webhook.js";
 
 type AppOptions = {
   frontendOrigin: string;
   jwtSecret: string;
+  payments?: PaymentConfig;
 };
 
 export function createApp(database: Database, options: AppOptions) {
   const app = express();
   const requireAuth = createRequireAuth(database, options.jwtSecret);
+  const paymentConfig = options.payments ?? { mode: "disabled" };
 
   app.use((request, response, next) => {
     if (request.header("origin") === options.frontendOrigin) {
       response.setHeader("Access-Control-Allow-Origin", options.frontendOrigin);
-      response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Checkout-Token");
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       response.setHeader("Vary", "Origin");
     }
@@ -28,11 +33,13 @@ export function createApp(database: Database, options: AppOptions) {
     }
     next();
   });
+  app.post("/webhooks/tally", express.raw({ type: "application/json", limit: "100kb" }), createTallyWebhookHandler(database, paymentConfig));
   app.use(express.json({ limit: "100kb" }));
   app.get("/health", (_request, response) => response.json({ status: "ok" }));
   app.use("/auth", createAuthRouter(database, options.jwtSecret, requireAuth));
   app.use("/places", createPlaceRouter(database));
   app.use("/saved-places", createSavedPlaceRouter(database, requireAuth));
+  app.use("/payments", createPaymentRouter(database, requireAuth, options.jwtSecret, paymentConfig));
   app.use((_request, response) => response.status(404).json({ message: "요청한 API를 찾을 수 없습니다." }));
 
   const handleError: ErrorRequestHandler = (error, _request, response, _next) => {

@@ -32,6 +32,7 @@ model User {
   updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(3)
   savedPlaces  SavedPlace[]
+  paymentOrders PaymentOrder[]
 
   @@index([deletedAt])
   @@map("users")
@@ -77,4 +78,40 @@ model SavedPlace {
   @@index([userId, deletedAt])
   @@index([restaurantId])
   @@map("saved_places")
+}
+
+model PaymentOrder {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String?   @map("user_id") @db.Uuid
+  applicationSubmissionId String? @unique @map("application_submission_id") @db.VarChar(128)
+  productId      String    @map("product_id") @db.VarChar(80)
+  name           String    @db.VarChar(100)
+  amount         Int
+  currency       String    @db.VarChar(3)
+  mode           String    @db.VarChar(20)
+  status         String    @default("PENDING") @db.VarChar(20)
+  paymentKey     String?   @unique @map("payment_key") @db.VarChar(200)
+  idempotencyKey String    @unique @default(uuid()) @map("idempotency_key") @db.Uuid
+  leaseToken     String?   @map("lease_token") @db.Uuid
+  leaseUntil     DateTime? @map("lease_until") @db.Timestamptz(3)
+  failureCode    String?   @map("failure_code") @db.VarChar(80)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  paidAt         DateTime? @map("paid_at") @db.Timestamptz(3)
+  user           User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([applicationSubmissionId, createdAt])
+  @@map("payment_orders")
+}
+
+model CurationSubmission {
+  id          String   @id @db.VarChar(128)
+  formId      String   @map("form_id") @db.VarChar(80)
+  eventId     String   @unique @map("event_id") @db.VarChar(128)
+  submittedAt DateTime @map("submitted_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([formId, submittedAt])
+  @@map("curation_submissions")
 }

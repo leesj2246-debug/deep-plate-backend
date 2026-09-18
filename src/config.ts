@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { loadPaymentConfig } from "./payments/payment-config.js";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -26,5 +27,6 @@ export function loadConfig() {
     frontendOrigin: required("FRONTEND_ORIGIN"),
     jwtSecret: jwtSecret(),
     port: parsePort(process.env.PORT),
+    payments: loadPaymentConfig(),
   };
 }

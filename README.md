@@ -9,6 +9,9 @@ Deep Plate 프론트엔드의 회원 인증, 식당 조회, 관심 식당 저장
 - 로그인 사용자별 관심 식당 저장, 조회, 소프트 삭제, 재저장 시 복구
 - PostgreSQL 데이터 모델과 한국어 오류 응답
 - 로컬 서버와 Vercel이 함께 사용할 수 있는 Express 진입점
+- 미션 8 테스트 전용 비회원·회원 주문, 결제 승인, 회원별 주문 내역. 기본 비활성화이며 실결제/상품 제공은 하지 않습니다.
+
+결제 선택 이유, 환경 변수, 사용 시나리오, API, 중복 승인·복구, 검증 범위는 [PAYMENT_FEATURE.md](./PAYMENT_FEATURE.md)에 정리했습니다.
 
 `User`, `Restaurant`, `SavedPlace`, `Customer`는 실제 행을 지우지 않고 `deletedAt`으로 삭제 상태를 기록합니다. 관심 식당은 `(userId, restaurantId)` 조합을 하나만 유지하며, 삭제한 식당을 다시 저장하면 기존 행을 복구합니다.
 
@@ -23,10 +26,13 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public"
 JWT_SECRET="32자 이상의 충분히 긴 임의 문자열"
 FRONTEND_ORIGIN="http://localhost:5173"
 PORT=3001
+PAYMENT_MODE=disabled
+TALLY_FORM_ID=ZjAlQe
+TALLY_SIGNING_SECRET="Tally 웹훅과 공유하는 비밀값"
 ```
 
 - 개발: 로컬 PostgreSQL 주소와 로컬 프론트엔드 주소를 사용합니다.
-- 배포: Vercel 프로젝트에 운영 `DATABASE_URL`, `JWT_SECRET`, 실제 프론트엔드 주소를 따로 등록합니다.
+- 배포: Vercel 프로젝트에 운영 `DATABASE_URL`, `JWT_SECRET`, 실제 프론트엔드 주소, Tally 웹훅 설정을 따로 등록합니다.
 - `.env`는 Git에 올리지 않습니다.
 
 ## 설치와 실행
@@ -57,7 +63,7 @@ npm.cmd run db:deploy
 npm.cmd run db:seed
 ```
 
-로컬 개발 환경에서는 PostgreSQL 18의 `deep_plate_dev` 데이터베이스에 두 개의 마이그레이션을 적용하고, 공식 출처가 연결된 식당 3곳을 시드했습니다. 운영 배포에서는 별도의 운영 데이터베이스에 `db:deploy`와 `db:seed`를 다시 실행해야 합니다.
+로컬 개발 환경에서는 PostgreSQL 18의 `deep_plate_dev` 데이터베이스에 결제 주문과 검증된 Tally 제출 메타데이터 마이그레이션까지 적용하고, 공식 출처가 연결된 식당 3곳을 보존했습니다. 운영 배포에서는 별도의 운영 데이터베이스에 `db:deploy`와 `db:seed`를 다시 실행해야 합니다.
 
 ## API
 
@@ -160,7 +166,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-테스트는 데이터베이스 없이 입력 검증, 비밀번호 해시, JWT 서명·만료, 기본 라우팅과 JSON 오류 응답을 확인합니다.
+테스트는 데이터베이스 없이 입력 검증, 비밀번호 해시, JWT 서명·만료, Tally HMAC 서명과 비회원 주문 소유권, 결제 중복·복구, 기본 라우팅과 JSON 오류 응답을 확인합니다.
 
 ## Vercel 준비
 
@@ -169,9 +175,9 @@ npm.cmd run build
 실제 배포 전에는 다음 순서를 지킵니다.
 
 1. 연결 풀링을 지원하는 운영 PostgreSQL을 준비합니다.
-2. Vercel에 `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_ORIGIN`을 등록합니다.
+2. Vercel에 `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_ORIGIN`, 결제 모드와 Tally 웹훅 환경 변수를 등록합니다.
 3. 운영 DB에 `npm.cmd run db:deploy`와 `npm.cmd run db:seed`를 실행합니다.
-4. 백엔드 배포 후 `/health`, 인증, 식당 조회, 저장 흐름을 확인합니다.
+4. 백엔드 배포 후 `/health`, 인증, 식당 조회, 저장 흐름과 `/webhooks/tally` 서명 검증을 확인합니다.
 5. 프론트의 `VITE_API_BASE_URL`을 배포된 백엔드 주소로 설정하고 다시 배포합니다.
 
 비밀값과 `.env`는 GitHub에 올리지 않습니다.
