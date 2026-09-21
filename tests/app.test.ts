@@ -6,7 +6,7 @@ import { createApp } from "../src/app.js";
 import type { Database } from "../src/db.js";
 
 const options = {
-  frontendOrigin: "http://localhost:5173",
+  frontendOrigin: "http://localhost:5173, https://preview.deepplate.example",
   jwtSecret: "test-secret-that-is-longer-than-32-characters",
 };
 
@@ -20,6 +20,16 @@ test("상태 확인, 없는 API, 잘못된 회원가입 요청에 JSON 응답을
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), { status: "ok" });
+
+    const previewHealth = await fetch(`http://127.0.0.1:${port}/health`, {
+      headers: { Origin: "https://preview.deepplate.example" },
+    });
+    assert.equal(previewHealth.headers.get("access-control-allow-origin"), "https://preview.deepplate.example");
+
+    const rejectedOrigin = await fetch(`http://127.0.0.1:${port}/health`, {
+      headers: { Origin: "https://untrusted.example" },
+    });
+    assert.equal(rejectedOrigin.headers.get("access-control-allow-origin"), null);
 
     const missing = await fetch(`http://127.0.0.1:${port}/missing`);
     assert.equal(missing.status, 404);

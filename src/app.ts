@@ -19,10 +19,14 @@ export function createApp(database: Database, options: AppOptions) {
   const app = express();
   const requireAuth = createRequireAuth(database, options.jwtSecret);
   const paymentConfig = options.payments ?? { mode: "disabled" };
+  const allowedFrontendOrigins = new Set(
+    options.frontendOrigin.split(",").map((origin) => origin.trim()).filter(Boolean),
+  );
 
   app.use((request, response, next) => {
-    if (request.header("origin") === options.frontendOrigin) {
-      response.setHeader("Access-Control-Allow-Origin", options.frontendOrigin);
+    const requestOrigin = request.header("origin");
+    if (requestOrigin && allowedFrontendOrigins.has(requestOrigin)) {
+      response.setHeader("Access-Control-Allow-Origin", requestOrigin);
       response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Checkout-Token");
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       response.setHeader("Vary", "Origin");
